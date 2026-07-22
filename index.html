@@ -10,7 +10,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
 
-
 <style>
 
 body{
@@ -25,19 +24,29 @@ body{
 #cameraBox{
 
     position:relative;
+
     width:100vw;
+
     height:75vh;
+
     overflow:hidden;
+
+    background:black;
 
 }
 
 
-video,canvas{
+video,
+canvas{
 
     position:absolute;
+
     left:0;
+
     top:0;
+
     width:100%;
+
     height:100%;
 
 }
@@ -45,22 +54,24 @@ video,canvas{
 
 video{
 
-    object-fit:cover;
+    object-fit:contain;
 
 }
 
 
 canvas{
 
-    pointer-events:none;
+    object-fit:contain;
 
 }
 
 
 button{
 
-    padding:12px 25px;
     margin:8px;
+
+    padding:12px 25px;
+
     font-size:18px;
 
 }
@@ -69,14 +80,15 @@ button{
 #count{
 
     font-size:26px;
-    margin:10px;
+
+    margin:15px;
 
 }
-
 
 </style>
 
 </head>
+
 
 
 <body>
@@ -87,13 +99,19 @@ AI藥品拍照辨識
 </h2>
 
 
+
 <div id="cameraBox">
 
 
-<video id="video" autoplay playsinline></video>
+<video
+id="video"
+autoplay
+playsinline>
+</video>
 
 
-<canvas id="canvas"></canvas>
+<canvas id="canvas">
+</canvas>
 
 
 </div>
@@ -111,15 +129,14 @@ AI藥品拍照辨識
 </button>
 
 
-<button onclick="captureAndDetect()">
+<button onclick="capture()">
 拍照辨識
 </button>
 
 
-<button onclick="retake()">
+<button onclick="resetCamera()">
 重新拍攝
 </button>
-
 
 
 
@@ -137,8 +154,7 @@ let session=null;
 
 let stream=null;
 
-let photoLocked=false;
-
+let locked=false;
 
 
 const video =
@@ -165,17 +181,16 @@ async function loadModel(){
         "model.onnx",
 
         {
+
             executionProviders:[
                 "wasm"
             ]
+
         }
 
     );
 
-
 }
-
-
 
 
 
@@ -184,27 +199,36 @@ async function loadModel(){
 async function startCamera(){
 
 
-    if(!session){
-
+    if(!session)
         await loadModel();
-
-    }
-
-
-
-    if(stream)
-        return;
 
 
 
     stream =
-    await navigator.mediaDevices
-    .getUserMedia({
+    await navigator.mediaDevices.getUserMedia({
 
         video:{
+
             facingMode:
-            "environment"
+            {
+                ideal:
+                "environment"
+            },
+
+
+            width:
+            {
+                ideal:1280
+            },
+
+
+            height:
+            {
+                ideal:720
+            }
+
         },
+
 
         audio:false
 
@@ -219,22 +243,7 @@ async function startCamera(){
     video.onloadedmetadata=()=>{
 
 
-        canvas.width =
-        video.videoWidth;
-
-
-        canvas.height =
-        video.videoHeight;
-
-
-        ctx.clearRect(
-
-            0,
-            0,
-            canvas.width,
-            canvas.height
-
-        );
+        resizeCanvas();
 
 
     };
@@ -248,22 +257,7 @@ async function startCamera(){
 
 
 
-
-// ======================
-// 拍照 + 定格 + AI
-// ======================
-
-
-async function captureAndDetect(){
-
-
-    if(photoLocked)
-        return;
-
-
-
-    photoLocked=true;
-
+function resizeCanvas(){
 
 
     canvas.width =
@@ -274,13 +268,49 @@ async function captureAndDetect(){
     video.videoHeight;
 
 
+}
 
 
-    // 把目前畫面定格到canvas
+
+
+
+
+
+
+
+// =======================
+// 拍照定格
+// =======================
+
+
+async function capture(){
+
+
+    if(locked)
+        return;
+
+
+    locked=true;
+
+
+
+    resizeCanvas();
+
+
+
+    // 完全依照原始比例複製
 
     ctx.drawImage(
 
         video,
+
+        0,
+
+        0,
+
+        video.videoWidth,
+
+        video.videoHeight,
 
         0,
 
@@ -294,7 +324,7 @@ async function captureAndDetect(){
 
 
 
-    await detectImage();
+    await detect();
 
 
 }
@@ -307,16 +337,15 @@ async function captureAndDetect(){
 
 
 
-// ======================
-// 重新拍攝
-// ======================
+// =======================
+// 回到相機
+// =======================
 
 
-function retake(){
+function resetCamera(){
 
 
-    photoLocked=false;
-
+    locked=false;
 
 
     ctx.clearRect(
@@ -347,25 +376,24 @@ function retake(){
 
 
 
-async function detectImage(){
+async function detect(){
 
 
-    let imgCanvas =
+    let img =
     document.createElement("canvas");
 
 
-    imgCanvas.width =
+    img.width =
     canvas.width;
 
 
-    imgCanvas.height =
+    img.height =
     canvas.height;
 
 
 
     let ictx =
-    imgCanvas.getContext("2d");
-
+    img.getContext("2d");
 
 
     ictx.drawImage(
@@ -381,11 +409,11 @@ async function detectImage(){
 
 
     let result =
-    await runModel(imgCanvas);
+    await runAI(img);
 
 
 
-    drawPoints(result);
+    drawResult(result);
 
 
 }
@@ -398,28 +426,30 @@ async function detectImage(){
 
 
 
-// ======================
+// =======================
 // ONNX
-// ======================
+// =======================
 
 
-async function runModel(img){
+async function runAI(img){
 
 
     const size=640;
 
 
-    let temp =
+
+    let c =
     document.createElement("canvas");
 
 
-    temp.width=size;
+    c.width=size;
 
-    temp.height=size;
+    c.height=size;
 
 
-    let tctx =
-    temp.getContext("2d");
+
+    let cctx =
+    c.getContext("2d");
 
 
 
@@ -452,9 +482,9 @@ async function runModel(img){
 
 
 
-    tctx.fillStyle="black";
+    cctx.fillStyle="black";
 
-    tctx.fillRect(
+    cctx.fillRect(
 
         0,
 
@@ -468,7 +498,7 @@ async function runModel(img){
 
 
 
-    tctx.drawImage(
+    cctx.drawImage(
 
         img,
 
@@ -484,8 +514,8 @@ async function runModel(img){
 
 
 
-    let data =
-    tctx.getImageData(
+    let pix =
+    cctx.getImageData(
 
         0,
 
@@ -508,26 +538,19 @@ async function runModel(img){
 
 
 
-    for(
+    for(let i=0;i<size*size;i++){
 
-        let i=0;
-
-        i<size*size;
-
-        i++
-
-    ){
 
         input[i]=
-        data.data[i*4]/255;
+        pix.data[i*4]/255;
 
 
         input[i+size*size]=
-        data.data[i*4+1]/255;
+        pix.data[i*4+1]/255;
 
 
         input[i+size*size*2]=
-        data.data[i*4+2]/255;
+        pix.data[i*4+2]/255;
 
 
     }
@@ -547,9 +570,9 @@ async function runModel(img){
 
             3,
 
-            size,
+            640,
 
-            size
+            640
 
         ]
 
@@ -591,107 +614,24 @@ async function runModel(img){
 
 
 
-function drawPoints(result){
-
-
-    let output =
-    result.output;
-
-
-    let scale =
-    result.scale;
-
-
-    let padX =
-    result.padX;
-
-
-    let padY =
-    result.padY;
-
-
-
-    // 清掉舊畫面後重新放回照片
-
-    let img =
-    canvas.toDataURL();
-
-
-
-    let image =
-    new Image();
-
-
-    image.onload=()=>{
-
-
-        ctx.drawImage(
-
-            image,
-
-            0,
-
-            0
-
-        );
-
-
-
-        drawAI(
-
-            output,
-
-            scale,
-
-            padX,
-
-            padY
-
-        );
-
-
-    };
-
-
-    image.src=img;
-
-
-
-}
-
-
-
-
-
-
-
-
-
-function drawAI(output,scale,padX,padY){
-
+function drawResult(r){
 
 
     let data =
-    output.data;
+    r.output.data;
 
 
 
     let total=8400;
 
 
+
     let points=[];
 
 
 
-    for(
+    for(let i=0;i<total;i++){
 
-        let i=0;
-
-        i<total;
-
-        i++
-
-    ){
 
 
         let score =
@@ -704,24 +644,23 @@ function drawAI(output,scale,padX,padY){
 
 
 
-        let x =
-        (data[i]-padX)/scale;
-
-
-        let y =
-        (data[i+total]-padY)/scale;
-
-
-
         points.push({
 
-            x,
+            x:
+            (data[i]-r.padX)/r.scale,
 
-            y,
 
-            w:data[i+total*2]/scale,
+            y:
+            (data[i+total]-r.padY)/r.scale,
 
-            h:data[i+total*3]/scale,
+
+            w:
+            data[i+total*2]/r.scale,
+
+
+            h:
+            data[i+total*3]/r.scale,
+
 
             score
 
@@ -733,6 +672,7 @@ function drawAI(output,scale,padX,padY){
 
 
     points=nms(points,0.35);
+
 
 
 
@@ -786,7 +726,6 @@ function drawAI(output,scale,padX,padY){
 
 
 
-
 function nms(boxes,t){
 
 
@@ -798,7 +737,6 @@ function nms(boxes,t){
     );
 
 
-
     let result=[];
 
 
@@ -806,7 +744,7 @@ function nms(boxes,t){
     while(boxes.length){
 
 
-        let best =
+        let best=
         boxes.shift();
 
 
@@ -814,23 +752,20 @@ function nms(boxes,t){
 
 
 
-        boxes =
+        boxes=
         boxes.filter(
 
             b=>iou(best,b)<t
 
         );
 
-
     }
-
 
 
     return result;
 
 
 }
-
 
 
 
@@ -847,7 +782,6 @@ function iou(a,b){
     let ax2=a.x+a.w/2;
 
     let ay2=a.y+a.h/2;
-
 
 
     let bx1=b.x-b.w/2;
@@ -885,7 +819,6 @@ function iou(a,b){
     let inter=iw*ih;
 
 
-
     return inter /
 
     (
@@ -894,8 +827,8 @@ function iou(a,b){
         inter
     );
 
-
 }
+
 
 
 </script>
