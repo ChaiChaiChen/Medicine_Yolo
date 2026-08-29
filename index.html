@@ -670,7 +670,8 @@ function drawResult(r){
     }
 
 
-    const randomColor = `hsl(${Math.floor(Math.random()*360)}, 90%, 55%)`;
+    // const randomColor =
+    //     `hsl(${Math.floor(Math.random()*360)}, 90%, 55%)`;
     points=nms(points,0.35);
 
 
@@ -697,7 +698,7 @@ function drawResult(r){
         );
 
 
-        ctx.fillStyle=randomColor;
+        ctx.fillStyle="red";
 
 
         ctx.fill();
