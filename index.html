@@ -134,6 +134,44 @@ button{
 
 }
 
+/* =======================
+   操作按鈕區
+======================= */
+
+.actionButtons{
+
+    display:flex;
+
+    width:100%;
+
+    justify-content:center;
+
+    align-items:center;
+
+    gap:6px;
+
+    margin-top:10px;
+
+}
+
+
+/* =======================
+   三個操作按鈕
+======================= */
+
+.actionButtons button{
+
+    flex:1;
+
+    margin:0;
+
+    padding:10px 5px;
+
+    font-size:16px;
+
+    white-space:nowrap;
+
+}
 
 /* =======================
    設定區域
@@ -386,25 +424,21 @@ button{
      操作按鈕
 ======================= -->
 
-<button onclick="startCamera()">
+<div class="actionButtons">
 
-    開啟相機
+    <button onclick="startCamera()">
+        開啟相機
+    </button>
 
-</button>
+    <button onclick="capture()">
+        拍照辨識
+    </button>
 
+    <button onclick="resetCamera()">
+        重新拍攝
+    </button>
 
-<button onclick="capture()">
-
-    拍照辨識
-
-</button>
-
-
-<button onclick="resetCamera()">
-
-    重新拍攝
-
-</button>
+</div>
 
 
 
