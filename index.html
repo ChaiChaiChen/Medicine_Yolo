@@ -13,7 +13,9 @@
 <title>AI藥品拍照辨識</title>
 
 
-<!-- ONNX Runtime Web -->
+<!-- =======================
+     ONNX Runtime Web
+======================= -->
 
 <script
     src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js">
@@ -43,6 +45,7 @@ body{
 
 /* =======================
    相機區域
+   1:1
 ======================= */
 
 #cameraBox{
@@ -51,7 +54,7 @@ body{
 
     width:100vw;
 
-    height:70vh;
+    aspect-ratio:1 / 1;
 
     overflow:hidden;
 
@@ -59,6 +62,10 @@ body{
 
 }
 
+
+/* =======================
+   Video / Canvas
+======================= */
 
 video,
 canvas{
@@ -76,12 +83,22 @@ canvas{
 }
 
 
+/*
+    相機畫面填滿 1:1 框
+
+    超出的左右或上下部分會被裁掉
+*/
+
 video{
 
-    object-fit:contain;
+    object-fit:cover;
 
 }
 
+
+/*
+    Canvas 也維持 1:1 顯示
+*/
 
 canvas{
 
@@ -167,7 +184,7 @@ button{
 
 .colorBtn.red{
 
-    background:red;
+    background:#ff0000;
 
 }
 
@@ -176,7 +193,7 @@ button{
 
 .colorBtn.green{
 
-    background:green;
+    background:#00cc00;
 
 }
 
@@ -185,7 +202,7 @@ button{
 
 .colorBtn.yellow{
 
-    background:yellow;
+    background:#ffff00;
 
 }
 
@@ -268,7 +285,7 @@ button{
 
     <button
         class="colorBtn green"
-        onclick="selectColor('green', this)"
+        onclick="selectColor('#00cc00', this)"
         title="綠色">
     </button>
 
@@ -277,7 +294,7 @@ button{
 
     <button
         class="colorBtn yellow"
-        onclick="selectColor('yellow', this)"
+        onclick="selectColor('#ffff00', this)"
         title="黃色">
     </button>
 
@@ -336,7 +353,7 @@ let locked = false;
 /*
     使用者目前選擇的顏色
 
-    預設為紅色
+    預設紅色
 */
 
 let selectedColor = "red";
@@ -345,14 +362,19 @@ let selectedColor = "red";
 /*
     儲存 AI 辨識結果
 
-    這個陣列非常重要。
-
-    使用者改變顏色時，
-    不需要重新執行 AI，
-    只需要重新畫這些點。
+    換顏色時不需要重新 AI
 */
 
 let detectedPoints = [];
+
+
+/*
+    儲存拍照後的乾淨 1:1 照片
+
+    換顏色時會重新使用這張照片
+*/
+
+let originalPhoto = null;
 
 
 
@@ -374,7 +396,7 @@ canvas.getContext("2d");
 
 
 /* =======================
-   使用者選擇顏色
+   選擇顏色
 ======================= */
 
 function selectColor(color, button){
@@ -389,7 +411,7 @@ function selectColor(color, button){
 
 
     /*
-        移除所有顏色按鈕的 selected
+        移除其他按鈕的 selected
     */
 
     document
@@ -403,7 +425,7 @@ function selectColor(color, button){
 
 
     /*
-        將目前選擇的顏色加上 selected
+        標記目前選擇
     */
 
     button.classList.add("selected");
@@ -411,14 +433,17 @@ function selectColor(color, button){
 
 
     /*
-        如果已經完成 AI 辨識
+        如果已經有 AI 辨識結果
 
-        直接重新畫標記
+        直接重新繪製
 
         不重新執行 AI
     */
 
-    if(detectedPoints.length > 0){
+    if(
+        detectedPoints.length > 0 &&
+        originalPhoto
+    ){
 
         drawPoints();
 
@@ -429,7 +454,7 @@ function selectColor(color, button){
 
 
 /* =======================
-   載入 AI 模型
+   載入模型
 ======================= */
 
 async function loadModel(){
@@ -460,13 +485,11 @@ async function loadModel(){
 
 async function startCamera(){
 
-
     try{
 
 
         /*
-            如果 AI 模型還沒載入
-            先載入模型
+            載入 AI 模型
         */
 
         if(!session){
@@ -478,7 +501,7 @@ async function startCamera(){
 
 
         /*
-            開啟手機後置相機
+            開啟後置相機
         */
 
         stream =
@@ -517,7 +540,7 @@ async function startCamera(){
 
 
         /*
-            將相機串流放進 video
+            放入 Video
         */
 
         video.srcObject =
@@ -525,21 +548,11 @@ async function startCamera(){
 
 
 
-        /*
-            相機載入完成
-        */
-
-        video.onloadedmetadata = ()=>{
-
-            resizeCanvas();
-
-        };
-
-
     }
     catch(error){
 
         console.error(error);
+
 
         alert(
             "無法開啟相機，請確認瀏覽器已允許相機權限。"
@@ -552,43 +565,15 @@ async function startCamera(){
 
 
 /* =======================
-   調整 Canvas
-======================= */
-
-function resizeCanvas(){
-
-
-    if(
-        video.videoWidth === 0 ||
-        video.videoHeight === 0
-    ){
-
-        return;
-
-    }
-
-
-    canvas.width =
-    video.videoWidth;
-
-
-    canvas.height =
-    video.videoHeight;
-
-}
-
-
-
-/* =======================
-   拍照定格
+   拍照
+   實際照片為 1:1
 ======================= */
 
 async function capture(){
 
 
     /*
-        如果已經拍照鎖定
-        不重複執行
+        防止重複拍照
     */
 
     if(locked){
@@ -600,7 +585,7 @@ async function capture(){
 
 
     /*
-        確認相機已經開啟
+        確認相機
     */
 
     if(
@@ -623,44 +608,129 @@ async function capture(){
 
 
     /*
-        確保 Canvas 尺寸正確
+        =================================
+        取得中央正方形
+        =================================
+
+        例如：
+
+        相機：
+        1280 × 720
+
+        實際拍照：
+        720 × 720
     */
 
-    resizeCanvas();
-
-
-
-    /*
-        將目前相機畫面
-        完整複製到 Canvas
-    */
-
-    ctx.drawImage(
-
-        video,
-
-        0,
-
-        0,
+    const size =
+    Math.min(
 
         video.videoWidth,
 
-        video.videoHeight,
-
-        0,
-
-        0,
-
-        canvas.width,
-
-        canvas.height
+        video.videoHeight
 
     );
 
 
 
     /*
-        開始 AI 辨識
+        原始影像中央 X
+    */
+
+    const sx =
+    (video.videoWidth - size) / 2;
+
+
+
+    /*
+        原始影像中央 Y
+    */
+
+    const sy =
+    (video.videoHeight - size) / 2;
+
+
+
+    /*
+        =================================
+        建立 1:1 原始照片
+        =================================
+    */
+
+    originalPhoto =
+    document.createElement("canvas");
+
+
+    originalPhoto.width =
+    size;
+
+
+    originalPhoto.height =
+    size;
+
+
+
+    const photoCtx =
+    originalPhoto.getContext("2d");
+
+
+
+    /*
+        從相機中央裁切成正方形
+    */
+
+    photoCtx.drawImage(
+
+        video,
+
+        sx,
+        sy,
+
+        size,
+        size,
+
+        0,
+        0,
+        size,
+        size
+
+    );
+
+
+
+    /*
+        =================================
+        Canvas 也設定成 1:1
+        =================================
+    */
+
+    canvas.width =
+    size;
+
+
+    canvas.height =
+    size;
+
+
+
+    /*
+        顯示乾淨照片
+    */
+
+    ctx.drawImage(
+
+        originalPhoto,
+
+        0,
+        0
+
+    );
+
+
+
+    /*
+        =================================
+        AI 辨識
+        =================================
     */
 
     try{
@@ -672,9 +742,11 @@ async function capture(){
 
         console.error(error);
 
+
         alert(
             "AI 辨識失敗，請重新拍攝。"
         );
+
 
         locked = false;
 
@@ -692,7 +764,7 @@ function resetCamera(){
 
 
     /*
-        解除拍照鎖定
+        解鎖
     */
 
     locked = false;
@@ -700,12 +772,18 @@ function resetCamera(){
 
 
     /*
-        清除 AI 辨識結果
-
-        非常重要
+        清除辨識結果
     */
 
     detectedPoints = [];
+
+
+
+    /*
+        清除原始照片
+    */
+
+    originalPhoto = null;
 
 
 
@@ -740,56 +818,19 @@ function resetCamera(){
 
 
 /* =======================
-   開始辨識
+   AI 辨識
 ======================= */
 
 async function detect(){
 
 
     /*
-        建立一個暫存 Canvas
-    */
-
-    let img =
-    document.createElement("canvas");
-
-
-    img.width =
-    canvas.width;
-
-
-    img.height =
-    canvas.height;
-
-
-
-    let ictx =
-    img.getContext("2d");
-
-
-
-    /*
-        複製拍照結果
-    */
-
-    ictx.drawImage(
-
-        canvas,
-
-        0,
-
-        0
-
-    );
-
-
-
-    /*
-        執行 AI
+        直接使用
+        拍照後的 1:1 照片
     */
 
     let result =
-    await runAI(img);
+    await runAI(originalPhoto);
 
 
 
@@ -804,7 +845,7 @@ async function detect(){
 
 
 /* =======================
-   ONNX AI
+   ONNX
 ======================= */
 
 async function runAI(img){
@@ -812,6 +853,11 @@ async function runAI(img){
 
     /*
         AI 輸入尺寸
+
+        640 × 640
+
+        因為 img 本身已經是 1:1，
+        所以這裡不會再產生長方形 padding。
     */
 
     const size = 640;
@@ -819,7 +865,7 @@ async function runAI(img){
 
 
     /*
-        建立 640x640 Canvas
+        建立 640 × 640 Canvas
     */
 
     let c =
@@ -841,50 +887,40 @@ async function runAI(img){
 
 
     /*
-        計算縮放比例
+        =================================
+        1:1 → 640 × 640
+        =================================
 
-        保持原始影像比例
+        因為照片本身就是正方形，
+
+        所以直接縮放即可。
+
+        scale = 640 / 原始尺寸
+
+        padX = 0
+        padY = 0
     */
 
     let scale =
-    Math.min(
-
-        size / img.width,
-
-        size / img.height
-
-    );
+    size / img.width;
 
 
-
-    /*
-        縮放後尺寸
-    */
 
     let w =
-    img.width * scale;
+    size;
 
 
     let h =
-    img.height * scale;
+    size;
 
 
-
-    /*
-        計算左右 padding
-    */
 
     let padX =
-    (size - w) / 2;
+    0;
 
-
-
-    /*
-        計算上下 padding
-    */
 
     let padY =
-    (size - h) / 2;
+    0;
 
 
 
@@ -911,19 +947,18 @@ async function runAI(img){
 
 
     /*
-        將照片放入 640x640
+        將 1:1 照片縮放到
+        640 × 640
     */
 
     cctx.drawImage(
 
         img,
 
-        padX,
-
-        padY,
+        0,
+        0,
 
         w,
-
         h
 
     );
@@ -931,7 +966,7 @@ async function runAI(img){
 
 
     /*
-        取得影像像素
+        取得像素
     */
 
     let pix =
@@ -950,20 +985,22 @@ async function runAI(img){
 
 
     /*
-        建立 RGB Float32Array
+        RGB Float32Array
     */
 
     let input =
     new Float32Array(
 
-        size * size * 3
+        size *
+        size *
+        3
 
     );
 
 
 
     /*
-        RGB 分離
+        RGB
 
         R
         G
@@ -982,12 +1019,16 @@ async function runAI(img){
 
 
 
-        input[i + size * size] =
+        input[
+            i + size * size
+        ] =
         pix.data[i * 4 + 1] / 255;
 
 
 
-        input[i + size * size * 2] =
+        input[
+            i + size * size * 2
+        ] =
         pix.data[i * 4 + 2] / 255;
 
     }
@@ -995,7 +1036,7 @@ async function runAI(img){
 
 
     /*
-        建立 ONNX Tensor
+        建立 Tensor
     */
 
     let tensor =
@@ -1022,7 +1063,7 @@ async function runAI(img){
 
 
     /*
-        執行模型
+        執行 ONNX
     */
 
     let output =
@@ -1036,10 +1077,12 @@ async function runAI(img){
 
 
     /*
-        回傳 AI 結果
+        回傳
 
-        同時保留縮放資訊
-        用來將座標轉回原始照片
+        因為現在是 1:1，
+
+        scale 只需要負責
+        640 → 原始照片尺寸
     */
 
     return {
@@ -1072,9 +1115,7 @@ function drawResult(r){
 
 
     /*
-        YOLO 輸出數量
-
-        你的原始程式設定為 8400
+        YOLO 8400 個候選
     */
 
     let total =
@@ -1087,7 +1128,7 @@ function drawResult(r){
 
 
     /*
-        找出信心度大於 0.65 的結果
+        找出信心度 >= 0.65
     */
 
     for(
@@ -1098,14 +1139,11 @@ function drawResult(r){
 
 
         let score =
-        data[i + total * 4];
+        data[
+            i + total * 4
+        ];
 
 
-
-        /*
-            信心度低於 0.65
-            不採用
-        */
 
         if(score < 0.65){
 
@@ -1116,29 +1154,48 @@ function drawResult(r){
 
 
         /*
-            將座標轉回原始圖片
+            將 640 × 640 座標
+            轉回實際照片座標
         */
 
         points.push({
 
             x:
-            (data[i] - r.padX)
-            / r.scale,
+            (
+                data[i]
+                -
+                r.padX
+            )
+            /
+            r.scale,
 
 
             y:
-            (data[i + total] - r.padY)
-            / r.scale,
+            (
+                data[
+                    i + total
+                ]
+                -
+                r.padY
+            )
+            /
+            r.scale,
 
 
             w:
-            data[i + total * 2]
-            / r.scale,
+            data[
+                i + total * 2
+            ]
+            /
+            r.scale,
 
 
             h:
-            data[i + total * 3]
-            / r.scale,
+            data[
+                i + total * 3
+            ]
+            /
+            r.scale,
 
 
             score
@@ -1151,8 +1208,6 @@ function drawResult(r){
 
     /*
         NMS
-
-        移除重複辨識
     */
 
     points =
@@ -1168,13 +1223,13 @@ function drawResult(r){
 
     /*
         =================================
-        非常重要
+        儲存 AI 辨識結果
         =================================
 
-        把 AI 辨識結果儲存起來。
+        這裡只儲存座標。
 
-        之後使用者切換紅/綠/黃時，
-        不需要再次執行 AI。
+        之後使用者切換顏色，
+        不需要重新執行 AI。
     */
 
     detectedPoints =
@@ -1191,7 +1246,7 @@ function drawResult(r){
 
 
     /*
-        顯示藥品數量
+        顯示數量
     */
 
     document.getElementById("count")
@@ -1208,37 +1263,18 @@ function drawResult(r){
 
 
 /* =======================
-   畫標記
+   畫出標記
 ======================= */
 
 function drawPoints(){
 
 
     /*
-        先重新繪製原本的照片
-
-        避免切換顏色時
-        舊顏色殘留
+        如果沒有照片
+        不執行
     */
 
-    /*
-        注意：
-
-        Canvas 裡目前已經包含照片，
-        但之前畫過標記。
-
-        因此需要重新從 video / 原圖
-        建立乾淨畫面。
-
-        因為拍照後 video 仍然存在，
-        所以如果 locked 狀態下直接從 video
-        重畫，畫面可能仍是即時影像。
-
-        因此這裡使用另外一個 offscreen canvas
-        儲存乾淨照片。
-    */
-
-    if(!window.originalPhoto){
+    if(!originalPhoto){
 
         return;
 
@@ -1247,7 +1283,10 @@ function drawPoints(){
 
 
     /*
-        將原始照片重新畫回 Canvas
+        =================================
+        第一步
+        清除 Canvas
+        =================================
     */
 
     ctx.clearRect(
@@ -1263,21 +1302,35 @@ function drawPoints(){
     );
 
 
+
+    /*
+        =================================
+        第二步
+        放回乾淨的 1:1 照片
+        =================================
+    */
+
     ctx.drawImage(
 
-        window.originalPhoto,
+        originalPhoto,
 
         0,
 
-        0
+        0,
+
+        canvas.width,
+
+        canvas.height
 
     );
 
 
 
     /*
-        使用目前選擇的顏色
+        =================================
+        第三步
         畫出所有藥品標記
+        =================================
     */
 
     detectedPoints.forEach(p=>{
@@ -1286,13 +1339,17 @@ function drawPoints(){
         ctx.beginPath();
 
 
+        /*
+            藥品中心點
+        */
+
         ctx.arc(
 
             p.x,
 
             p.y,
 
-            6,
+            8,
 
             0,
 
@@ -1302,7 +1359,7 @@ function drawPoints(){
 
 
         /*
-            所有標記共用同一個顏色
+            使用者目前選擇的顏色
         */
 
         ctx.fillStyle =
@@ -1326,8 +1383,7 @@ function nms(boxes, t){
 
 
     /*
-        按照信心度
-        從高到低排序
+        信心度由高到低
     */
 
     boxes.sort(
@@ -1342,16 +1398,17 @@ function nms(boxes, t){
 
 
 
-    while(boxes.length){
+    while(
+        boxes.length
+    ){
 
 
         /*
-            取最高信心度
+            取最高分
         */
 
         let best =
         boxes.shift();
-
 
 
         result.push(best);
@@ -1359,8 +1416,7 @@ function nms(boxes, t){
 
 
         /*
-            移除與 best
-            重疊太高的框
+            移除重疊過高的結果
         */
 
         boxes =
@@ -1441,7 +1497,7 @@ function iou(a,b){
 
 
     /*
-        計算交集寬度
+        交集寬度
     */
 
     let iw =
@@ -1449,16 +1505,22 @@ function iou(a,b){
 
         0,
 
-        Math.min(ax2,bx2)
+        Math.min(
+            ax2,
+            bx2
+        )
         -
-        Math.max(ax1,bx1)
+        Math.max(
+            ax1,
+            bx1
+        )
 
     );
 
 
 
     /*
-        計算交集高度
+        交集高度
     */
 
     let ih =
@@ -1466,9 +1528,15 @@ function iou(a,b){
 
         0,
 
-        Math.min(ay2,by2)
+        Math.min(
+            ay2,
+            by2
+        )
         -
-        Math.max(ay1,by1)
+        Math.max(
+            ay1,
+            by1
+        )
 
     );
 
