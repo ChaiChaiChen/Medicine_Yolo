@@ -47,7 +47,7 @@ canvas{
 
     width:100%;
 
-    height:100%;
+    height:80%;
 
 }
 
@@ -616,56 +616,44 @@ async function runAI(img){
 
 function drawResult(r){
 
-
     let data =
     r.output.data;
 
-
-
     let total=8400;
 
-
-
     let points=[];
+
+    // 隨機產生一個顏色
+    const randomColor =
+        `hsl(${Math.floor(Math.random()*360)}, 90%, 55%)`;
 
 
 
     for(let i=0;i<total;i++){
 
-
-
         let score =
         data[i+total*4];
 
-
-
         if(score<0.65)
             continue;
-
-
 
         points.push({
 
             x:
             (data[i]-r.padX)/r.scale,
 
-
             y:
             (data[i+total]-r.padY)/r.scale,
-
 
             w:
             data[i+total*2]/r.scale,
 
-
             h:
             data[i+total*3]/r.scale,
-
 
             score
 
         });
-
 
     }
 
@@ -675,35 +663,38 @@ function drawResult(r){
 
 
 
-
+    // 所有標記使用同一個隨機顏色
     points.forEach(p=>{
-
 
         ctx.beginPath();
 
-
         ctx.arc(
-
             p.x,
-
             p.y,
-
             6,
-
             0,
-
             Math.PI*2
-
         );
 
-
-        ctx.fillStyle =`hsl(${Math.random()*360}, 100%, 50%)`;
-
+        ctx.fillStyle = randomColor;
 
         ctx.fill();
 
-
     });
+
+
+
+    document.getElementById("count")
+    .innerHTML=
+
+    "藥品數量:"
+    +
+    points.length
+    +
+    " 顆";
+
+}
+
 
 
 
