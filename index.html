@@ -83,22 +83,12 @@ canvas{
 }
 
 
-/*
-    相機畫面填滿 1:1 框
-
-    超出的左右或上下部分會被裁掉
-*/
-
 video{
 
     object-fit:cover;
 
 }
 
-
-/*
-    Canvas 也維持 1:1 顯示
-*/
 
 canvas{
 
@@ -138,21 +128,46 @@ button{
 
 
 /* =======================
-   顏色選擇區
+   設定區域
 ======================= */
 
-.colorSelect{
+.setting{
 
     margin:15px;
 
 }
 
 
-.colorTitle{
+/* =======================
+   標題
+======================= */
+
+.settingTitle{
 
     font-size:20px;
 
     margin-bottom:8px;
+
+}
+
+
+/* =======================
+   顏色 / 大小按鈕
+======================= */
+
+.optionBtn{
+
+    margin:5px;
+
+    padding:10px 18px;
+
+    font-size:18px;
+
+    border:3px solid white;
+
+    border-radius:8px;
+
+    cursor:pointer;
 
 }
 
@@ -208,12 +223,12 @@ button{
 
 
 /* =======================
-   目前選擇的顏色
+   目前選擇
 ======================= */
 
-.colorBtn.selected{
+.selected{
 
-    border:5px solid #00ffff;
+    border:5px solid #00ffff !important;
 
     box-shadow:
         0 0 10px #00ffff;
@@ -259,13 +274,14 @@ button{
 </div>
 
 
+
 <!-- =======================
-     顏色選擇
+     標記顏色
 ======================= -->
 
-<div class="colorSelect">
+<div class="setting">
 
-    <div class="colorTitle">
+    <div class="settingTitle">
 
         標記顏色
 
@@ -299,6 +315,56 @@ button{
     </button>
 
 </div>
+
+
+
+<!-- =======================
+     標記大小
+======================= -->
+
+<div class="setting">
+
+    <div class="settingTitle">
+
+        標記大小
+
+    </div>
+
+
+    <!-- 6 -->
+
+    <button
+        class="optionBtn"
+        onclick="selectSize(6, this)">
+
+        6
+
+    </button>
+
+
+    <!-- 8 預設 -->
+
+    <button
+        class="optionBtn selected"
+        onclick="selectSize(8, this)">
+
+        8
+
+    </button>
+
+
+    <!-- 10 -->
+
+    <button
+        class="optionBtn"
+        onclick="selectSize(10, this)">
+
+        10
+
+    </button>
+
+</div>
+
 
 
 <!-- =======================
@@ -351,27 +417,34 @@ let locked = false;
 
 
 /*
-    使用者目前選擇的顏色
+    目前選擇的標記顏色
 
-    預設紅色
+    預設：
+    紅色
 */
 
 let selectedColor = "red";
 
 
 /*
-    儲存 AI 辨識結果
+    目前選擇的標記大小
 
-    換顏色時不需要重新 AI
+    預設：
+    8
+*/
+
+let selectedSize = 8;
+
+
+/*
+    AI 辨識結果
 */
 
 let detectedPoints = [];
 
 
 /*
-    儲存拍照後的乾淨 1:1 照片
-
-    換顏色時會重新使用這張照片
+    拍照後的乾淨 1:1 照片
 */
 
 let originalPhoto = null;
@@ -403,7 +476,7 @@ function selectColor(color, button){
 
 
     /*
-        設定目前顏色
+        設定顏色
     */
 
     selectedColor = color;
@@ -411,7 +484,7 @@ function selectColor(color, button){
 
 
     /*
-        移除其他按鈕的 selected
+        移除其他顏色的 selected
     */
 
     document
@@ -425,7 +498,65 @@ function selectColor(color, button){
 
 
     /*
-        標記目前選擇
+        標記目前顏色
+    */
+
+    button.classList.add("selected");
+
+
+
+    /*
+        如果已經辨識完成
+
+        直接重新畫標記
+
+        不重新執行 AI
+    */
+
+    if(
+        detectedPoints.length > 0 &&
+        originalPhoto
+    ){
+
+        drawPoints();
+
+    }
+
+}
+
+
+
+/* =======================
+   選擇標記大小
+======================= */
+
+function selectSize(size, button){
+
+
+    /*
+        設定目前標記大小
+    */
+
+    selectedSize = size;
+
+
+
+    /*
+        移除其他大小按鈕的 selected
+    */
+
+    document
+        .querySelectorAll(".optionBtn")
+        .forEach(btn => {
+
+            btn.classList.remove("selected");
+
+        });
+
+
+
+    /*
+        標記目前大小
     */
 
     button.classList.add("selected");
@@ -435,7 +566,7 @@ function selectColor(color, button){
     /*
         如果已經有 AI 辨識結果
 
-        直接重新繪製
+        直接重新畫標記
 
         不重新執行 AI
     */
@@ -547,7 +678,6 @@ async function startCamera(){
         stream;
 
 
-
     }
     catch(error){
 
@@ -566,7 +696,7 @@ async function startCamera(){
 
 /* =======================
    拍照
-   實際照片為 1:1
+   1:1
 ======================= */
 
 async function capture(){
@@ -609,16 +739,8 @@ async function capture(){
 
     /*
         =================================
-        取得中央正方形
+        中央裁切成 1:1
         =================================
-
-        例如：
-
-        相機：
-        1280 × 720
-
-        實際拍照：
-        720 × 720
     */
 
     const size =
@@ -652,7 +774,7 @@ async function capture(){
 
     /*
         =================================
-        建立 1:1 原始照片
+        建立乾淨的 1:1 照片
         =================================
     */
 
@@ -675,7 +797,7 @@ async function capture(){
 
 
     /*
-        從相機中央裁切成正方形
+        中央裁切
     */
 
     photoCtx.drawImage(
@@ -699,7 +821,7 @@ async function capture(){
 
     /*
         =================================
-        Canvas 也設定成 1:1
+        Canvas 設定成 1:1
         =================================
     */
 
@@ -713,7 +835,7 @@ async function capture(){
 
 
     /*
-        顯示乾淨照片
+        顯示照片
     */
 
     ctx.drawImage(
@@ -794,11 +916,8 @@ function resetCamera(){
     ctx.clearRect(
 
         0,
-
         0,
-
         canvas.width,
-
         canvas.height
 
     );
@@ -825,8 +944,7 @@ async function detect(){
 
 
     /*
-        直接使用
-        拍照後的 1:1 照片
+        使用 1:1 原始照片
     */
 
     let result =
@@ -835,7 +953,7 @@ async function detect(){
 
 
     /*
-        顯示辨識結果
+        顯示結果
     */
 
     drawResult(result);
@@ -853,11 +971,6 @@ async function runAI(img){
 
     /*
         AI 輸入尺寸
-
-        640 × 640
-
-        因為 img 本身已經是 1:1，
-        所以這裡不會再產生長方形 padding。
     */
 
     const size = 640;
@@ -865,7 +978,7 @@ async function runAI(img){
 
 
     /*
-        建立 640 × 640 Canvas
+        建立 640 × 640
     */
 
     let c =
@@ -887,31 +1000,13 @@ async function runAI(img){
 
 
     /*
-        =================================
-        1:1 → 640 × 640
-        =================================
+        因為原始照片已經是 1:1
 
-        因為照片本身就是正方形，
-
-        所以直接縮放即可。
-
-        scale = 640 / 原始尺寸
-
-        padX = 0
-        padY = 0
+        所以直接縮放
     */
 
     let scale =
     size / img.width;
-
-
-
-    let w =
-    size;
-
-
-    let h =
-    size;
 
 
 
@@ -925,30 +1020,7 @@ async function runAI(img){
 
 
     /*
-        黑色背景
-    */
-
-    cctx.fillStyle =
-    "black";
-
-
-    cctx.fillRect(
-
-        0,
-
-        0,
-
-        size,
-
-        size
-
-    );
-
-
-
-    /*
-        將 1:1 照片縮放到
-        640 × 640
+        將照片縮放到 640 × 640
     */
 
     cctx.drawImage(
@@ -958,8 +1030,8 @@ async function runAI(img){
         0,
         0,
 
-        w,
-        h
+        size,
+        size
 
     );
 
@@ -973,11 +1045,8 @@ async function runAI(img){
     cctx.getImageData(
 
         0,
-
         0,
-
         size,
-
         size
 
     );
@@ -1000,11 +1069,7 @@ async function runAI(img){
 
 
     /*
-        RGB
-
-        R
-        G
-        B
+        RGB 分離
     */
 
     for(
@@ -1078,11 +1143,6 @@ async function runAI(img){
 
     /*
         回傳
-
-        因為現在是 1:1，
-
-        scale 只需要負責
-        640 → 原始照片尺寸
     */
 
     return {
@@ -1115,7 +1175,7 @@ function drawResult(r){
 
 
     /*
-        YOLO 8400 個候選
+        YOLO 8400
     */
 
     let total =
@@ -1128,7 +1188,7 @@ function drawResult(r){
 
 
     /*
-        找出信心度 >= 0.65
+        confidence >= 0.65
     */
 
     for(
@@ -1154,8 +1214,7 @@ function drawResult(r){
 
 
         /*
-            將 640 × 640 座標
-            轉回實際照片座標
+            轉回原始 1:1 照片座標
         */
 
         points.push({
@@ -1222,14 +1281,7 @@ function drawResult(r){
 
 
     /*
-        =================================
-        儲存 AI 辨識結果
-        =================================
-
-        這裡只儲存座標。
-
-        之後使用者切換顏色，
-        不需要重新執行 AI。
+        儲存辨識結果
     */
 
     detectedPoints =
@@ -1238,7 +1290,7 @@ function drawResult(r){
 
 
     /*
-        畫出標記
+        畫標記
     */
 
     drawPoints();
@@ -1263,15 +1315,14 @@ function drawResult(r){
 
 
 /* =======================
-   畫出標記
+   畫標記
 ======================= */
 
 function drawPoints(){
 
 
     /*
-        如果沒有照片
-        不執行
+        確認有照片
     */
 
     if(!originalPhoto){
@@ -1284,19 +1335,15 @@ function drawPoints(){
 
     /*
         =================================
-        第一步
-        清除 Canvas
+        清除舊畫面
         =================================
     */
 
     ctx.clearRect(
 
         0,
-
         0,
-
         canvas.width,
-
         canvas.height
 
     );
@@ -1305,8 +1352,7 @@ function drawPoints(){
 
     /*
         =================================
-        第二步
-        放回乾淨的 1:1 照片
+        重新畫乾淨照片
         =================================
     */
 
@@ -1315,11 +1361,9 @@ function drawPoints(){
         originalPhoto,
 
         0,
-
         0,
 
         canvas.width,
-
         canvas.height
 
     );
@@ -1328,8 +1372,7 @@ function drawPoints(){
 
     /*
         =================================
-        第三步
-        畫出所有藥品標記
+        畫標記
         =================================
     */
 
@@ -1340,7 +1383,9 @@ function drawPoints(){
 
 
         /*
-            藥品中心點
+            使用者選擇的大小
+
+            6 / 8 / 10
         */
 
         ctx.arc(
@@ -1349,7 +1394,7 @@ function drawPoints(){
 
             p.y,
 
-            8,
+            selectedSize,
 
             0,
 
@@ -1359,12 +1404,16 @@ function drawPoints(){
 
 
         /*
-            使用者目前選擇的顏色
+            使用者選擇的顏色
         */
 
         ctx.fillStyle =
         selectedColor;
 
+
+        /*
+            填滿圓點
+        */
 
         ctx.fill();
 
@@ -1383,7 +1432,7 @@ function nms(boxes, t){
 
 
     /*
-        信心度由高到低
+        按照信心度排序
     */
 
     boxes.sort(
@@ -1404,7 +1453,7 @@ function nms(boxes, t){
 
 
         /*
-            取最高分
+            取最高信心度
         */
 
         let best =
@@ -1416,7 +1465,7 @@ function nms(boxes, t){
 
 
         /*
-            移除重疊過高的結果
+            移除重疊過高
         */
 
         boxes =
@@ -1497,7 +1546,7 @@ function iou(a,b){
 
 
     /*
-        交集寬度
+        交集寬
     */
 
     let iw =
@@ -1520,7 +1569,7 @@ function iou(a,b){
 
 
     /*
-        交集高度
+        交集高
     */
 
     let ih =
