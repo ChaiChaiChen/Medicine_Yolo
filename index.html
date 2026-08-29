@@ -21,6 +21,10 @@ body{
 }
 
 
+/* =======================
+   相機區域
+======================= */
+
 #cameraBox{
 
     position:relative;
@@ -47,7 +51,7 @@ canvas{
 
     width:100%;
 
-    height:80%;
+    height:100%;
 
 }
 
@@ -66,6 +70,10 @@ canvas{
 }
 
 
+/* =======================
+   按鈕
+======================= */
+
 button{
 
     margin:8px;
@@ -77,6 +85,10 @@ button{
 }
 
 
+/* =======================
+   藥品數量
+======================= */
+
 #count{
 
     font-size:26px;
@@ -85,77 +97,208 @@ button{
 
 }
 
+
+/* =======================
+   顏色選擇
+======================= */
+
+.colorSelect{
+
+    margin:15px;
+
+}
+
+
+.colorTitle{
+
+    font-size:20px;
+
+    margin-bottom:8px;
+
+}
+
+
+/* 顏色按鈕 */
+
+.colorBtn{
+
+    width:60px;
+
+    height:45px;
+
+    margin:5px;
+
+    padding:0;
+
+    border:3px solid white;
+
+    border-radius:8px;
+
+    cursor:pointer;
+
+}
+
+
+/* 紅色 */
+
+.colorBtn.red{
+
+    background:red;
+
+}
+
+
+/* 綠色 */
+
+.colorBtn.green{
+
+    background:green;
+
+}
+
+
+/* 黃色 */
+
+.colorBtn.yellow{
+
+    background:yellow;
+
+}
+
+
+/* 被選中的顏色 */
+
+.colorBtn.selected{
+
+    border:5px solid #00ffff;
+
+    box-shadow:
+        0 0 10px #00ffff;
+
+}
+
+
 </style>
 
 </head>
 
 
-
 <body>
 
 
-<!-- <h2>
-AI藥品拍照辨識
-</h2> -->
-
-
+<!-- =======================
+     相機
+======================= -->
 
 <div id="cameraBox">
 
+    <video
+        id="video"
+        autoplay
+        playsinline>
+    </video>
 
-<video
-id="video"
-autoplay
-playsinline>
-</video>
-
-
-<canvas id="canvas">
-</canvas>
-
+    <canvas id="canvas">
+    </canvas>
 
 </div>
 
 
+<!-- =======================
+     藥品數量
+======================= -->
 
 <div id="count">
-藥品數量:0 顆
+    藥品數量:0 顆
 </div>
 
 
+<!-- =======================
+     顏色選擇
+======================= -->
+
+<div class="colorSelect">
+
+    <div class="colorTitle">
+        標記顏色
+    </div>
+
+
+    <button
+        class="colorBtn red selected"
+        onclick="selectColor('red', this)"
+        title="紅色">
+    </button>
+
+
+    <button
+        class="colorBtn green"
+        onclick="selectColor('green', this)"
+        title="綠色">
+    </button>
+
+
+    <button
+        class="colorBtn yellow"
+        onclick="selectColor('yellow', this)"
+        title="黃色">
+    </button>
+
+</div>
+
+
+<!-- =======================
+     操作按鈕
+======================= -->
 
 <button onclick="startCamera()">
-開啟相機
+    開啟相機
 </button>
 
 
 <button onclick="capture()">
-拍照辨識
+    拍照辨識
 </button>
 
 
 <button onclick="resetCamera()">
-重新拍攝
+    重新拍攝
 </button>
-
-
-
 
 
 <script>
 
 
+/* =======================
+   ONNX Runtime
+======================= */
+
 ort.env.wasm.wasmPaths =
 "https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/";
 
 
+/* =======================
+   全域變數
+======================= */
 
-let session=null;
+let session = null;
 
-let stream=null;
+let stream = null;
 
-let locked=false;
+let locked = false;
 
+
+/* =======================
+   目前選擇的標記顏色
+   預設：紅色
+======================= */
+
+let selectedColor = "red";
+
+
+/* =======================
+   DOM
+======================= */
 
 const video =
 document.getElementById("video");
@@ -170,10 +313,41 @@ canvas.getContext("2d");
 
 
 
+/* =======================
+   顏色選擇
+======================= */
 
+function selectColor(color, button){
+
+    // 設定目前顏色
+
+    selectedColor = color;
+
+
+    // 移除所有按鈕的 selected
+
+    document
+        .querySelectorAll(".colorBtn")
+        .forEach(btn => {
+
+            btn.classList.remove("selected");
+
+        });
+
+
+    // 加上目前選擇的 selected
+
+    button.classList.add("selected");
+
+}
+
+
+
+/* =======================
+   載入 AI 模型
+======================= */
 
 async function loadModel(){
-
 
     session =
     await ort.InferenceSession.create(
@@ -194,14 +368,18 @@ async function loadModel(){
 
 
 
-
+/* =======================
+   開啟相機
+======================= */
 
 async function startCamera(){
 
 
-    if(!session)
+    if(!session){
+
         await loadModel();
 
+    }
 
 
     stream =
@@ -235,16 +413,13 @@ async function startCamera(){
     });
 
 
+    video.srcObject =
+    stream;
 
-    video.srcObject=stream;
 
-
-
-    video.onloadedmetadata=()=>{
-
+    video.onloadedmetadata = ()=>{
 
         resizeCanvas();
-
 
     };
 
@@ -253,12 +428,11 @@ async function startCamera(){
 
 
 
-
-
-
+/* =======================
+   調整 Canvas
+======================= */
 
 function resizeCanvas(){
-
 
     canvas.width =
     video.videoWidth;
@@ -267,21 +441,13 @@ function resizeCanvas(){
     canvas.height =
     video.videoHeight;
 
-
 }
 
 
 
-
-
-
-
-
-
-// =======================
-// 拍照定格
-// =======================
-
+/* =======================
+   拍照定格
+======================= */
 
 async function capture(){
 
@@ -290,15 +456,13 @@ async function capture(){
         return;
 
 
-    locked=true;
-
+    locked = true;
 
 
     resizeCanvas();
 
 
-
-    // 完全依照原始比例複製
+    // 完全依照原始比例複製影像
 
     ctx.drawImage(
 
@@ -323,29 +487,20 @@ async function capture(){
     );
 
 
-
     await detect();
-
 
 }
 
 
 
-
-
-
-
-
-
-// =======================
-// 回到相機
-// =======================
-
+/* =======================
+   回到相機
+======================= */
 
 function resetCamera(){
 
 
-    locked=false;
+    locked = false;
 
 
     ctx.clearRect(
@@ -362,19 +517,16 @@ function resetCamera(){
 
 
     document.getElementById("count")
-    .innerHTML=
+    .innerHTML =
     "藥品數量:0 顆";
-
 
 }
 
 
 
-
-
-
-
-
+/* =======================
+   開始辨識
+======================= */
 
 async function detect(){
 
@@ -389,7 +541,6 @@ async function detect(){
 
     img.height =
     canvas.height;
-
 
 
     let ictx =
@@ -407,82 +558,72 @@ async function detect(){
     );
 
 
-
     let result =
     await runAI(img);
 
 
-
     drawResult(result);
-
 
 }
 
 
 
-
-
-
-
-
-
-// =======================
-// ONNX
-// =======================
-
+/* =======================
+   ONNX AI
+======================= */
 
 async function runAI(img){
 
 
-    const size=640;
-
+    const size = 640;
 
 
     let c =
     document.createElement("canvas");
 
 
-    c.width=size;
+    c.width = size;
 
-    c.height=size;
-
+    c.height = size;
 
 
     let cctx =
     c.getContext("2d");
 
 
+    // 計算縮放比例
 
     let scale =
     Math.min(
 
-        size/img.width,
+        size / img.width,
 
-        size/img.height
+        size / img.height
 
     );
 
 
-
     let w =
-    img.width*scale;
+    img.width * scale;
 
 
     let h =
-    img.height*scale;
+    img.height * scale;
 
 
+    // 計算 padding
 
     let padX =
-    (size-w)/2;
+    (size - w) / 2;
 
 
     let padY =
-    (size-h)/2;
+    (size - h) / 2;
 
 
+    // 黑色背景
 
-    cctx.fillStyle="black";
+    cctx.fillStyle = "black";
 
     cctx.fillRect(
 
@@ -497,6 +638,7 @@ async function runAI(img){
     );
 
 
+    // 將圖片縮放到 640x640
 
     cctx.drawImage(
 
@@ -513,6 +655,7 @@ async function runAI(img){
     );
 
 
+    // 取得像素
 
     let pix =
     cctx.getImageData(
@@ -528,34 +671,37 @@ async function runAI(img){
     );
 
 
+    // 建立 RGB Float32
 
     let input =
     new Float32Array(
 
-        size*size*3
+        size * size * 3
 
     );
 
 
+    for(
+        let i = 0;
+        i < size * size;
+        i++
+    ){
 
-    for(let i=0;i<size*size;i++){
-
-
-        input[i]=
-        pix.data[i*4]/255;
-
-
-        input[i+size*size]=
-        pix.data[i*4+1]/255;
+        input[i] =
+        pix.data[i * 4] / 255;
 
 
-        input[i+size*size*2]=
-        pix.data[i*4+2]/255;
+        input[i + size * size] =
+        pix.data[i * 4 + 1] / 255;
 
+
+        input[i + size * size * 2] =
+        pix.data[i * 4 + 2] / 255;
 
     }
 
 
+    // 建立 Tensor
 
     let tensor =
     new ort.Tensor(
@@ -579,6 +725,7 @@ async function runAI(img){
     );
 
 
+    // 執行 AI
 
     let output =
     await session.run({
@@ -587,7 +734,6 @@ async function runAI(img){
         tensor
 
     });
-
 
 
     return {
@@ -603,16 +749,13 @@ async function runAI(img){
 
     };
 
-
 }
 
 
 
-
-
-
-
-
+/* =======================
+   顯示辨識結果
+======================= */
 
 function drawResult(r){
 
@@ -621,61 +764,76 @@ function drawResult(r){
     r.output.data;
 
 
-
-    let total=8400;
-
+    let total = 8400;
 
 
-    let points=[];
+    let points = [];
 
 
+    /* =======================
+       找出符合信心度的藥品
+    ======================= */
 
-    for(let i=0;i<total;i++){
-
+    for(
+        let i = 0;
+        i < total;
+        i++
+    ){
 
 
         let score =
-        data[i+total*4];
+        data[i + total * 4];
 
 
-
-        if(score<0.65)
+        if(score < 0.65)
             continue;
-
 
 
         points.push({
 
             x:
-            (data[i]-r.padX)/r.scale,
+            (data[i] - r.padX)
+            / r.scale,
 
 
             y:
-            (data[i+total]-r.padY)/r.scale,
+            (data[i + total] - r.padY)
+            / r.scale,
 
 
             w:
-            data[i+total*2]/r.scale,
+            data[i + total * 2]
+            / r.scale,
 
 
             h:
-            data[i+total*3]/r.scale,
+            data[i + total * 3]
+            / r.scale,
 
 
             score
 
         });
 
-
     }
 
 
-    // const randomColor =
-    //     `hsl(${Math.floor(Math.random()*360)}, 90%, 55%)`;
-    points=nms(points,0.35);
+    /* =======================
+       NMS
+    ======================= */
+
+    points =
+    nms(
+        points,
+        0.35
+    );
 
 
 
+    /* =======================
+       使用者選擇的顏色
+       所有標記使用同一顏色
+    ======================= */
 
     points.forEach(p=>{
 
@@ -693,23 +851,29 @@ function drawResult(r){
 
             0,
 
-            Math.PI*2
+            Math.PI * 2
 
         );
 
 
-        ctx.fillStyle="red";
+        // 使用使用者選擇的顏色
+
+        ctx.fillStyle =
+        selectedColor;
 
 
         ctx.fill();
-
 
     });
 
 
 
+    /* =======================
+       顯示藥品數量
+    ======================= */
+
     document.getElementById("count")
-    .innerHTML=
+    .innerHTML =
 
     "藥品數量:"
     +
@@ -717,46 +881,43 @@ function drawResult(r){
     +
     " 顆";
 
-
 }
 
 
 
+/* =======================
+   NMS
+======================= */
 
-
-
-
-
-function nms(boxes,t){
+function nms(boxes, t){
 
 
     boxes.sort(
 
         (a,b)=>
-        b.score-a.score
+        b.score - a.score
 
     );
 
 
-    let result=[];
-
+    let result = [];
 
 
     while(boxes.length){
 
 
-        let best=
+        let best =
         boxes.shift();
 
 
         result.push(best);
 
 
-
-        boxes=
+        boxes =
         boxes.filter(
 
-            b=>iou(best,b)<t
+            b =>
+            iou(best,b) < t
 
         );
 
@@ -765,37 +926,53 @@ function nms(boxes,t){
 
     return result;
 
-
 }
 
 
 
-
-
+/* =======================
+   IOU
+======================= */
 
 function iou(a,b){
 
 
-    let ax1=a.x-a.w/2;
-
-    let ay1=a.y-a.h/2;
-
-    let ax2=a.x+a.w/2;
-
-    let ay2=a.y+a.h/2;
+    let ax1 =
+    a.x - a.w / 2;
 
 
-    let bx1=b.x-b.w/2;
+    let ay1 =
+    a.y - a.h / 2;
 
-    let by1=b.y-b.h/2;
 
-    let bx2=b.x+b.w/2;
+    let ax2 =
+    a.x + a.w / 2;
 
-    let by2=b.y+b.h/2;
+
+    let ay2 =
+    a.y + a.h / 2;
 
 
 
-    let iw=Math.max(
+    let bx1 =
+    b.x - b.w / 2;
+
+
+    let by1 =
+    b.y - b.h / 2;
+
+
+    let bx2 =
+    b.x + b.w / 2;
+
+
+    let by2 =
+    b.y + b.h / 2;
+
+
+
+    let iw =
+    Math.max(
 
         0,
 
@@ -806,7 +983,8 @@ function iou(a,b){
     );
 
 
-    let ih=Math.max(
+    let ih =
+    Math.max(
 
         0,
 
@@ -817,19 +995,21 @@ function iou(a,b){
     );
 
 
-    let inter=iw*ih;
+    let inter =
+    iw * ih;
 
 
     return inter /
 
     (
-        a.w*a.h+
-        b.w*b.h-
+        a.w * a.h
+        +
+        b.w * b.h
+        -
         inter
     );
 
 }
-
 
 
 </script>
